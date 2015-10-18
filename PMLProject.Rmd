@@ -1,0 +1,173 @@
+---
+title: "Practical Machine Learning - JHU"
+author: "Peter Vennel"
+date: "October 15, 2015"
+output: html_document
+---
+##Introduction
+
+**George Box: All models are wrong. But some are useful!**
+
+This project is part of Practical Machine Learning course from Johns Hopkins University. Here I am expected to come up with a predictive model from data provided using machine learning techniques.
+
+Six young health participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl in five different fashions: 
+
+* Class A -> Exactly according to the specification.
+* Class B -> Throwing the elbows to the front.
+* Class C -> Lifting the dumbbell only halfway.
+* Class D -> Lowering the dumbbell only halfway. 
+* Class E -> Throwing the hips to the front. 
+
+Class A corresponds to the specified execution of the exercise, while the other 4 classes correspond to common mistakes.
+
+My goal is to use data from accelerometers on the belt, forearm, arm, and dumbell of these 6 participants and predict the manner in which they did the exercise. 
+
+For more information about the data please visit the HAR project at  http://groupware.les.inf.puc-rio.br/har 
+
+**Note:** <mark>To keep the main report concise, I have moved all code and detail  results to Appendix. </mark>
+
+##Exploratory Data Analysis
+I performed some initial exploration of the data to get a better understanding of what we are dealing with. The following are the results of the EDA
+
+1. The data set has 19622 observations of 160 Variables.
+2. There were irrelevant data like "", "#DIV/0!".
+3. Lot of variables had NA or irrelevant data.
+4. There were some variables which could be filtered out, because it would not add any value to the predictive model. These variables were X, user_name, raw_timestamp_part_1, raw_timestamp_part_2, cvtd_timestamp, new_window and num_window.
+
+<mark>(See Appendix A1 for details)</mark>
+
+**Pre-processing**
+
+1. Replace all "" and "#DIV/0!" values with "NA".
+2. Filter our variables with more that 19000 observation with value = "NA".
+3. Filter out the 7 variables that are irrevalent to the calculation.
+4. So we now have 19622 observations with 51 variables.
+
+**Data Slicing**
+
+We create the **training** and **testing** data with split of 0.7 . So we will end up with to datasets. We will build our model using **training** data set and then validate the predictive model using the **testing** data. <mark>(See Appendix A2 for details)</mark>
+
+##Model Comparison
+This is the most interesting part. We are not sure what model method will be the most effective. <mark>(See Appendix A3 for details)</mark>
+
+I have used the following 3 model types:
+
+No| Model ID | Model Name
+---|---------|-----------
+1  | lda | Latent Dirichlet Allocation
+2  | rpart | Recursive Partitioning
+3  | rf   | Random Forest
+
+First we fit the 3 models using the training dataset. Then we run the predictive model based on the test data. Finally we compare our prediction with **classe** variable to verify accuracy, using Confusion Matrix. 
+
+After running the Confusion Matrix on the models, we got some more clarity on the mode. Below are some of the key metrics for comparing the model for effectiveness: 
+
+No | Model | Accuracy |  95% CI  | Kappa | P-Value [Acc > NIR]
+---|-------|----------|--------|-------|-------------------
+1 | lda | 70.48% |  (0.6930, 0.7165)  | 62.65% | < 2.2e-16
+2 | rpart | 48.90% |  (0.4762, 0.5019)  |33.11% | < 2.2e-16
+3 | rf | 99.44% |  (0.9921, 0.9961)  | 99.29% | < 2.2e-16
+
+Clearly from the above 3 models, we see that Random Forest is more effective and accurate.
+
+We will now directly use the randomForest package so we can configure the parameters. Building models using **train** takes more time and has less options to tune. 
+
+##Final Model Fitting
+I will now use **randomForest** package. See the **confusionMatrix()** result <mark>(in Appendix A4)</mark>. We now get accuracy of **99.64%**. Now looking at the **varImplPlot()** result <mark>(See Appendix A4 for details)</mark>, I could identify which variables are important. This helps us in reducing the variables without reducing the quality of the model.        
+
+**Fitting Model with fewer variables**
+So now we have reduced from **52** variables to **30** variables for the model. We train the model with fewer variables and check the accuracy using **confusionMatrix()**. The accuracy of the new fitted model is now **99.59%** <mark>(see Appendix A6 for other stats)</mark>. So we did not take a bit hit on the accuracy, but got more that **58%** reduction in variables. 
+
+
+##Conclusion
+Random forest runtimes are quite fast, and they are able to deal with unbalanced and missing data. Random Forest weaknesses are that when used for regression they cannot predict beyond the range in the training data, and that they may over-fit data sets that are particularly noisy. In our case the training data is very good, which helped with machine learning algorithm. 
+
+Based on the accuracy, we can say that out of sample error to be **0.41%**. Also, running this model on the test data for submission, I got a **100%** success rate. But that does not guarantee that the model is perfect and flawless. In addition the quality of the machine prediction algorithm depends on the quality of the **classe** variable value. This is used to learn to predict new data. 
+
+However, when a machine learning algorithm shows an implausible good fit (99%+ accuracy), it can be a symptom that you don't have enough training data to falsify bad modeling alternatives. 
+
+
+##Appendix
+<mark>**A1: Loading the data**</mark>
+```{r}
+library(caret)
+library(randomForest)
+
+set.seed(1234)
+
+pml_training <- read.csv("data/pml-training.csv", na.strings=c("NA", "#DIV/0!", ""))
+
+table(pml_training$classe)
+
+na_count <- sapply(pml_training, function(y) sum(length(which(is.na(y)))))
+y1 <- data.frame(na_count)
+naCols <- cbind(rownames(y1),y1)
+names(naCols) <- c('ColNames', 'RowCount')
+y3 <- naCols[naCols$RowCount > 19000,]
+
+NAColsNames <- as.character(y3$ColNames)
+delCols <- names(pml_training)%in% NAColsNames
+pml_trainingNonNA <- pml_training[!delCols] 
+pml_trainingNonNA <- pml_trainingNonNA[c(-1,-2,-3,-4,-5,-6,-7)]
+
+```
+
+
+<mark>**A2: Cross Validation**</mark>
+```{r warning=FALSE}
+inTrain <- createDataPartition(y=pml_trainingNonNA$classe,
+                               p = 0.7, list=FALSE)
+training <- pml_trainingNonNA[inTrain,]
+testing <- pml_trainingNonNA[-inTrain,]
+```
+
+
+<mark>**A3: Model Comparison**</mark>
+```{r}
+#Since these models take time to build, I saved it the first time and loading them.
+
+#modlda <- train(classe ~ ., data=training, method="lda")
+#saveRDS(modlda, "modlda.rds")
+modlda <- readRDS("modlda.rds")
+
+#modrpart  <- train(classe ~ ., data=training, method="rpart")
+#saveRDS(modrpart, "modrpart.rds")
+modrpart <- readRDS("modrpart.rds")
+  
+#modrf  <- train(classe ~ ., data=training, method="rf")
+#saveRDS(modrf, "modrf.rds")
+modrf <- readRDS("modrf.rds")
+
+plda <- predict(modlda, testing)
+prpart <- predict(modrpart, testing)
+prf <- predict(modrf, testing)
+```
+
+```{r}
+confusionMatrix(plda, testing$classe)$overall
+confusionMatrix(prpart, testing$classe)$overall
+confusionMatrix(prf, testing$classe)$overall
+```
+
+
+<mark>**A4: Model Fitting**</mark>
+```{r}
+modrfDirect <- randomForest(classe ~ ., data=training, ntree=1000, importance=TRUE)
+confusionMatrix(predict(modrfDirect,testing), testing$classe)
+varImpPlot(modrfDirect, type=1)
+```
+
+
+<mark>**A5: Fitting the model with fewer variables**</mark>
+```{r}
+selVars <- c("classe","yaw_belt", "roll_belt", "magnet_dumbbell_z", "pitch_belt", "magnet_dumbbell_y", "pitch_forearm", "gyros_arm_y", "magnet_belt_x", "roll_arm", "gyros_dumbbell_z", "gyros_dumbbell_x", "accel_dumbbell_y", "gyros_forearm_z", "magnet_forearm_z", "accel_dumbbell_z", "roll_forearm", "gyros_belt_z", "gyros_forearm_y", "roll_dumbbell", "yaw_dumbbell", "accel_belt_z", "yaw_arm", "magnet_belt_z", "yaw_forearm", "accel_forearm_z", "magnet_forearm_y", "magnet_dumbbell_x", "accel_forearm_y", "magnet_arm_z", "magnet_belt_y")
+trainingNew <- training[, selVars]
+modrfDirectNew <- randomForest(classe ~ ., data=trainingNew, ntree=1000, keep.forest=TRUE, importance=TRUE)
+```
+
+
+<mark>**A6: Final Model testing**</mark>
+```{r}
+confusionMatrix(predict(modrfDirectNew,testing), testing$classe)
+```
+
