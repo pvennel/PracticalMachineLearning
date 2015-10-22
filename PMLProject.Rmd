@@ -82,14 +82,16 @@ So now we have reduced from **52** variables to **30** variables for the model. 
 ##Conclusion
 Random forest runtimes are quite fast, and they are able to deal with unbalanced and missing data. Random Forest weaknesses are that when used for regression they cannot predict beyond the range in the training data, and that they may over-fit data sets that are particularly noisy. In our case the training data is very good, which helped with machine learning algorithm. 
 
-Based on the accuracy, we can say that out of sample error to be **0.41%**. Also, running this model on the test data for submission, I got a **100%** success rate. But that does not guarantee that the model is perfect and flawless. In addition the quality of the machine prediction algorithm depends on the quality of the **classe** variable value. This is used to learn to predict new data. 
+In random forests, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error. It is estimated internally, during the run. Based on the model training, we can say that out of sample error to be **0.49%**.
+
+Also, running this model on the test data for submission, I got a **100%** success rate. But that does not guarantee that the model is perfect and flawless. In addition the quality of the machine prediction algorithm depends on the quality of the **classe** variable value. This is used to learn to predict new data. 
 
 However, when a machine learning algorithm shows an implausible good fit (99%+ accuracy), it can be a symptom that you don't have enough training data to falsify bad modeling alternatives. 
 
 
 ##Appendix
 <mark>**A1: Loading the data**</mark>
-```{r}
+```{r loading_and_slicing}
 library(caret)
 library(randomForest)
 
@@ -114,7 +116,7 @@ pml_trainingNonNA <- pml_trainingNonNA[c(-1,-2,-3,-4,-5,-6,-7)]
 
 
 <mark>**A2: Cross Validation**</mark>
-```{r warning=FALSE}
+```{r cross_validation, warning=FALSE}
 inTrain <- createDataPartition(y=pml_trainingNonNA$classe,
                                p = 0.7, list=FALSE)
 training <- pml_trainingNonNA[inTrain,]
@@ -123,7 +125,7 @@ testing <- pml_trainingNonNA[-inTrain,]
 
 
 <mark>**A3: Model Comparison**</mark>
-```{r}
+```{r model_comparison}
 #Since these models take time to build, I saved it the first time and loading them.
 
 #modlda <- train(classe ~ ., data=training, method="lda")
@@ -143,7 +145,7 @@ prpart <- predict(modrpart, testing)
 prf <- predict(modrf, testing)
 ```
 
-```{r}
+```{r compare_confusion_matrix}
 confusionMatrix(plda, testing$classe)$overall
 confusionMatrix(prpart, testing$classe)$overall
 confusionMatrix(prf, testing$classe)$overall
@@ -151,7 +153,7 @@ confusionMatrix(prf, testing$classe)$overall
 
 
 <mark>**A4: Model Fitting**</mark>
-```{r}
+```{r model_fitting}
 modrfDirect <- randomForest(classe ~ ., data=training, ntree=1000, importance=TRUE)
 confusionMatrix(predict(modrfDirect,testing), testing$classe)
 varImpPlot(modrfDirect, type=1)
@@ -159,15 +161,17 @@ varImpPlot(modrfDirect, type=1)
 
 
 <mark>**A5: Fitting the model with fewer variables**</mark>
-```{r}
+```{r final_model_fitting}
 selVars <- c("classe","yaw_belt", "roll_belt", "magnet_dumbbell_z", "pitch_belt", "magnet_dumbbell_y", "pitch_forearm", "gyros_arm_y", "magnet_belt_x", "roll_arm", "gyros_dumbbell_z", "gyros_dumbbell_x", "accel_dumbbell_y", "gyros_forearm_z", "magnet_forearm_z", "accel_dumbbell_z", "roll_forearm", "gyros_belt_z", "gyros_forearm_y", "roll_dumbbell", "yaw_dumbbell", "accel_belt_z", "yaw_arm", "magnet_belt_z", "yaw_forearm", "accel_forearm_z", "magnet_forearm_y", "magnet_dumbbell_x", "accel_forearm_y", "magnet_arm_z", "magnet_belt_y")
 trainingNew <- training[, selVars]
-modrfDirectNew <- randomForest(classe ~ ., data=trainingNew, ntree=1000, keep.forest=TRUE, importance=TRUE)
+modrfDirectNew <- randomForest(classe ~ ., data=trainingNew, ntree=1000, importance=TRUE)
+
+modrfDirectNew
 ```
 
 
 <mark>**A6: Final Model testing**</mark>
-```{r}
+```{r final_model_testing}
 confusionMatrix(predict(modrfDirectNew,testing), testing$classe)
 ```
 
