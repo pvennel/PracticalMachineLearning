@@ -186,7 +186,8 @@ img {
 <div id="conclusion" class="section level2">
 <h2>Conclusion</h2>
 <p>Random forest runtimes are quite fast, and they are able to deal with unbalanced and missing data. Random Forest weaknesses are that when used for regression they cannot predict beyond the range in the training data, and that they may over-fit data sets that are particularly noisy. In our case the training data is very good, which helped with machine learning algorithm.</p>
-<p>Based on the accuracy, we can say that out of sample error to be <strong>0.41%</strong>. Also, running this model on the test data for submission, I got a <strong>100%</strong> success rate. But that does not guarantee that the model is perfect and flawless. In addition the quality of the machine prediction algorithm depends on the quality of the <strong>classe</strong> variable value. This is used to learn to predict new data.</p>
+<p>In random forests, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error. It is estimated internally, during the run. Based on the model training, we can say that out of sample error to be <strong>0.49%</strong>.</p>
+<p>Also, running this model on the test data for submission, I got a <strong>100%</strong> success rate. But that does not guarantee that the model is perfect and flawless. In addition the quality of the machine prediction algorithm depends on the quality of the <strong>classe</strong> variable value. This is used to learn to predict new data.</p>
 <p>However, when a machine learning algorithm shows an implausible good fit (99%+ accuracy), it can be a symptom that you don’t have enough training data to falsify bad modeling alternatives.</p>
 </div>
 <div id="appendix" class="section level2">
@@ -295,7 +296,24 @@ confusionMatrix(predict(modrfDirect,testing), testing$classe)</code></pre>
 <p><mark><strong>A5: Fitting the model with fewer variables</strong></mark></p>
 <pre class="r"><code>selVars &lt;- c(&quot;classe&quot;,&quot;yaw_belt&quot;, &quot;roll_belt&quot;, &quot;magnet_dumbbell_z&quot;, &quot;pitch_belt&quot;, &quot;magnet_dumbbell_y&quot;, &quot;pitch_forearm&quot;, &quot;gyros_arm_y&quot;, &quot;magnet_belt_x&quot;, &quot;roll_arm&quot;, &quot;gyros_dumbbell_z&quot;, &quot;gyros_dumbbell_x&quot;, &quot;accel_dumbbell_y&quot;, &quot;gyros_forearm_z&quot;, &quot;magnet_forearm_z&quot;, &quot;accel_dumbbell_z&quot;, &quot;roll_forearm&quot;, &quot;gyros_belt_z&quot;, &quot;gyros_forearm_y&quot;, &quot;roll_dumbbell&quot;, &quot;yaw_dumbbell&quot;, &quot;accel_belt_z&quot;, &quot;yaw_arm&quot;, &quot;magnet_belt_z&quot;, &quot;yaw_forearm&quot;, &quot;accel_forearm_z&quot;, &quot;magnet_forearm_y&quot;, &quot;magnet_dumbbell_x&quot;, &quot;accel_forearm_y&quot;, &quot;magnet_arm_z&quot;, &quot;magnet_belt_y&quot;)
 trainingNew &lt;- training[, selVars]
-modrfDirectNew &lt;- randomForest(classe ~ ., data=trainingNew, ntree=1000, keep.forest=TRUE, importance=TRUE)</code></pre>
+modrfDirectNew &lt;- randomForest(classe ~ ., data=trainingNew, ntree=1000, importance=TRUE)
+
+modrfDirectNew</code></pre>
+<pre><code>## 
+## Call:
+##  randomForest(formula = classe ~ ., data = trainingNew, ntree = 1000,      importance = TRUE) 
+##                Type of random forest: classification
+##                      Number of trees: 1000
+## No. of variables tried at each split: 5
+## 
+##         OOB estimate of  error rate: 0.49%
+## Confusion matrix:
+##      A    B    C    D    E  class.error
+## A 3903    2    0    0    1 0.0007680492
+## B   13 2637    7    1    0 0.0079006772
+## C    0   10 2379    7    0 0.0070951586
+## D    0    0   16 2235    1 0.0075488455
+## E    0    0    1    8 2516 0.0035643564</code></pre>
 <p><mark><strong>A6: Final Model testing</strong></mark></p>
 <pre class="r"><code>confusionMatrix(predict(modrfDirectNew,testing), testing$classe)</code></pre>
 <pre><code>## Confusion Matrix and Statistics
