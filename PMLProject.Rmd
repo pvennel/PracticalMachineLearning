@@ -41,7 +41,7 @@ I performed some initial exploration of the data to get a better understanding o
 1. Replace all "" and "#DIV/0!" values with "NA".
 2. Filter our variables with more that 19000 observation with value = "NA".
 3. Filter out the 7 variables that are irrevalent to the calculation.
-4. So we now have 19622 observations with 51 variables.
+4. So we now have 19622 observations with 53 variables.
 
 **Data Slicing**
 
@@ -50,30 +50,26 @@ We create the **training** and **testing** data with split of 0.7 . So we will e
 ##Model Comparison
 This is the most interesting part. We are not sure what model method will be the most effective. <mark>(See Appendix A3 for details)</mark>
 
-I have used the following 3 model types:
+I have used the following 4 model types:
 
 No| Model ID | Model Name
 ---|---------|-----------
 1  | lda | Latent Dirichlet Allocation
 2  | rpart | Recursive Partitioning
 3  | rf   | Random Forest
+4  |svmRadial | Support Vector Machines with Radial Basis Function Kernel
 
-First we fit the 3 models using the training dataset. Then we run the predictive model based on the test data. Finally we compare our prediction with **classe** variable to verify accuracy, using Confusion Matrix. 
+First we fit the 4 models using the training dataset. Then we k-fold cross validation, using 10 folds. Once the models are trained and an optimal parameter configuration found for each, the accuracy results from each of the best models are collected. Each ???winning??? model has 30 results (3 repeats of 10-fold cross validation). The objective of comparing results is to compare the accuracy distributions (30 values) between the models. 
+ 
+The distributions are summarized in terms of the percentiles.  (see 
+Appendix A3 for table of results). I have also created a Box plot comparing model results (see Appendx A3)
 
-After running the Confusion Matrix on the models, we got some more clarity on the mode. Below are some of the key metrics for comparing the model for effectiveness: 
+Clearly from the above 4 models, we see that Random Forest is more effective and accurate.
 
-No | Model | Accuracy |  95% CI  | Kappa | P-Value [Acc > NIR]
----|-------|----------|--------|-------|-------------------
-1 | lda | 70.48% |  (0.6930, 0.7165)  | 62.65% | < 2.2e-16
-2 | rpart | 48.90% |  (0.4762, 0.5019)  |33.11% | < 2.2e-16
-3 | rf | 99.44% |  (0.9921, 0.9961)  | 99.29% | < 2.2e-16
-
-Clearly from the above 3 models, we see that Random Forest is more effective and accurate.
-
-We will now directly use the randomForest package so we can configure the parameters. Building models using **train** takes more time and has less options to tune. 
+Building models using **train** takes more time and has less options to tune. We will now directly use the randomForest package so we can configure the parameters and further tune the model (did I say faster...). 
 
 ##Final Model Fitting
-I will now use **randomForest** package. See the **confusionMatrix()** result <mark>(in Appendix A4)</mark>. We now get accuracy of **99.64%**. Now looking at the **varImplPlot()** result <mark>(See Appendix A4 for details)</mark>, I could identify which variables are important. This helps us in reducing the variables without reducing the quality of the model.        
+I will now use **randomForest** package. See the **confusionMatrix()** result <mark>(in Appendix A4)</mark>. We now get accuracy of **99.66%**. Now looking at the **varImplPlot()** result <mark>(See Appendix A4 for details)</mark>, I could identify which variables are important. This helps us in reducing the variables without reducing the quality of the model.        
 
 **Fitting Model with fewer variables**
 So now we have reduced from **52** variables to **30** variables for the model. We train the model with fewer variables and check the accuracy using **confusionMatrix()**. The accuracy of the new fitted model is now **99.59%** <mark>(see Appendix A6 for other stats)</mark>. So we did not take a bit hit on the accuracy, but got more that **58%** reduction in variables. 
@@ -88,12 +84,16 @@ Also, running this model on the test data for submission, I got a **100%** succe
 
 However, when a machine learning algorithm shows an implausible good fit (99%+ accuracy), it can be a symptom that you don't have enough training data to falsify bad modeling alternatives. 
 
+##Future Work
+I must admit that I am still a novice in the model world and do not have a thorough understanding of all the various hundreds of models. While Random Forest came out as the the front runner among other 3 models I choose, I believe there might be other models that might perform equally good if not better to Random Forest. For this I need to investigate more into the various Machine Learning Algorithm to see which ones work better in which situations. 
+
 
 ##Appendix
 <mark>**A1: Loading the data**</mark>
 ```{r loading_and_slicing}
 library(caret)
 library(randomForest)
+library(mlbench)
 
 set.seed(1234)
 
@@ -128,27 +128,35 @@ testing <- pml_trainingNonNA[-inTrain,]
 ```{r model_comparison}
 #Since these models take time to build, I saved it the first time and loading them.
 
-#modlda <- train(classe ~ ., data=training, method="lda")
+# prepare training scheme
+# Repeated k-fold Cross Validation - 10 fold
+control <- trainControl(method="repeatedcv", number=10, repeats=3, classProbs = TRUE)
+
+#modlda <- train(classe ~ ., data=training, method="lda",  trControl=control)
 #saveRDS(modlda, "modlda.rds")
 modlda <- readRDS("modlda.rds")
 
-#modrpart  <- train(classe ~ ., data=training, method="rpart")
+#modrpart  <- train(classe ~ ., data=training, method="rpart",  trControl=control)
 #saveRDS(modrpart, "modrpart.rds")
 modrpart <- readRDS("modrpart.rds")
-  
-#modrf  <- train(classe ~ ., data=training, method="rf")
+
+#modrf  <- train(classe ~ ., data=training, method="rf", trControl=control)
 #saveRDS(modrf, "modrf.rds")
 modrf <- readRDS("modrf.rds")
 
-plda <- predict(modlda, testing)
-prpart <- predict(modrpart, testing)
-prf <- predict(modrf, testing)
+#modsvm  <- train(classe ~ ., data=training, method="svmRadial", trControl=control)
+#saveRDS(modsvm, "modsvm.rds")
+modsvm <- readRDS("modsvm.rds")  
 ```
 
-```{r compare_confusion_matrix}
-confusionMatrix(plda, testing$classe)$overall
-confusionMatrix(prpart, testing$classe)$overall
-confusionMatrix(prf, testing$classe)$overall
+```{r compare_models}
+
+# collect resamples
+results <- resamples(list(LDA=modlda, RPART=modrpart, RF=modrf, SVM=modsvm))
+# summarize the distributions
+summary(results)
+# boxplots of results
+bwplot(results, main="BoxPlot for Model Comparison")
 ```
 
 
