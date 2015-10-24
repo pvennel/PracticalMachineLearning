@@ -1,7 +1,7 @@
 ---
 title: "Practical Machine Learning - JHU"
 author: "Peter Vennel"
-date: "October 15, 2015"
+date: "October 24, 2015"
 output: html_document
 ---
 ##Introduction
@@ -61,8 +61,8 @@ No| Model ID | Model Name
 
 First we fit the 4 models using the training dataset. Then we k-fold cross validation, using 10 folds. Once the models are trained and an optimal parameter configuration found for each, the accuracy results from each of the best models are collected. Each ???winning??? model has 30 results (3 repeats of 10-fold cross validation). The objective of comparing results is to compare the accuracy distributions (30 values) between the models. 
  
-The distributions are summarized in terms of the percentiles.  (see 
-Appendix A3 for table of results). I have also created a Box plot comparing model results (see Appendx A3)
+The distributions are summarized in terms of the percentiles.  <mark>(see 
+Appendix A3 for table of results)</mark>. I have also created a Box plot comparing model results <mark>(see Appendx A3)</mark>.
 
 Clearly from the above 4 models, we see that Random Forest is more effective and accurate.
 
